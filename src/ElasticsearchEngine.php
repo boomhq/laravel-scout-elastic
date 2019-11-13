@@ -2,10 +2,10 @@
 
 namespace ScoutEngines\Elasticsearch;
 
-use Laravel\Scout\Builder;
-use Laravel\Scout\Engines\Engine;
 use Elasticsearch\Client as Elastic;
 use Illuminate\Database\Eloquent\Collection;
+use Laravel\Scout\Builder;
+use Laravel\Scout\Engines\Engine;
 
 class ElasticsearchEngine extends Engine
 {
@@ -15,7 +15,7 @@ class ElasticsearchEngine extends Engine
      * @var string
      */
     protected $index;
-    
+
     /**
      * Elastic where the instance of Elastic|\Elasticsearch\Client is stored.
      *
@@ -45,8 +45,9 @@ class ElasticsearchEngine extends Engine
     {
         $params['body'] = [];
 
-        $models->each(function($model) use (&$params)
-        {
+
+        $models->each(function ($model) use (&$params) {
+
             $params['body'][] = [
                 'update' => [
                     '_id' => $model->getKey(),
@@ -58,6 +59,7 @@ class ElasticsearchEngine extends Engine
                 'doc' => $model->toSearchableArray(),
                 'doc_as_upsert' => true
             ];
+
         });
 
         $this->elastic->bulk($params);
@@ -73,8 +75,7 @@ class ElasticsearchEngine extends Engine
     {
         $params['body'] = [];
 
-        $models->each(function($model) use (&$params)
-        {
+        $models->each(function ($model) use (&$params) {
             $params['body'][] = [
                 'delete' => [
                     '_id' => $model->getKey(),
@@ -105,42 +106,31 @@ class ElasticsearchEngine extends Engine
      * Perform the given search on the engine.
      *
      * @param  Builder  $builder
-     * @param  int  $perPage
-     * @param  int  $page
-     * @return mixed
-     */
-    public function paginate(Builder $builder, $perPage, $page)
-    {
-        $result = $this->performSearch($builder, [
-            'numericFilters' => $this->filters($builder),
-            'from' => (($page * $perPage) - $perPage),
-            'size' => $perPage,
-        ]);
-
-       $result['nbPages'] = $result['hits']['total']/$perPage;
-
-        return $result;
-    }
-
-    /**
-     * Perform the given search on the engine.
-     *
-     * @param  Builder  $builder
      * @param  array  $options
      * @return mixed
      */
     protected function performSearch(Builder $builder, array $options = [])
     {
+        if (method_exists($builder->model, 'customScoutQuerySearching')) {
+            $queryBody = $builder->model->customScoutQuerySearching($builder->query);
+        } else {
+            $queryBody = [
+                'query' => [
+                    'multi_match' => [
+                        'query' => (string) ($builder->query),
+                        "fields" => [
+                            "*"
+                        ],
+                        "fuzziness" => "AUTO",
+                        "type" => "most_fields"
+                    ]
+                ]
+            ];
+        }
         $params = [
             'index' => $this->index,
             'type' => $builder->index ?: $builder->model->searchableAs(),
-            'body' => [
-                'query' => [
-                    'bool' => [
-                        'must' => [['query_string' => [ 'query' => "*{$builder->query}*"]]]
-                    ]
-                ]
-            ]
+            'body' => $queryBody
         ];
 
         if ($sort = $this->sort($builder)) {
@@ -173,6 +163,23 @@ class ElasticsearchEngine extends Engine
     }
 
     /**
+     * Generates the sort if theres any.
+     *
+     * @param  Builder  $builder
+     * @return array|null
+     */
+    protected function sort($builder)
+    {
+        if (count($builder->orders) == 0) {
+            return null;
+        }
+
+        return collect($builder->orders)->map(function ($order) {
+            return [$order['column'] => $order['direction']];
+        })->toArray();
+    }
+
+    /**
      * Get the filter array for the query.
      *
      * @param  Builder  $builder
@@ -187,6 +194,27 @@ class ElasticsearchEngine extends Engine
 
             return ['match_phrase' => [$key => $value]];
         })->values()->all();
+    }
+
+    /**
+     * Perform the given search on the engine.
+     *
+     * @param  Builder  $builder
+     * @param  int  $perPage
+     * @param  int  $page
+     * @return mixed
+     */
+    public function paginate(Builder $builder, $perPage, $page)
+    {
+        $result = $this->performSearch($builder, [
+            'numericFilters' => $this->filters($builder),
+            'from' => (($page * $perPage) - $perPage),
+            'size' => $perPage,
+        ]);
+
+        $result['nbPages'] = $result['hits']['total']['value'] / $perPage;
+
+        return $result;
     }
 
     /**
@@ -217,10 +245,12 @@ class ElasticsearchEngine extends Engine
         $keys = collect($results['hits']['hits'])->pluck('_id')->values()->all();
 
         return $model->getScoutModelsByIds(
-                $builder, $keys
-            )->filter(function ($model) use ($keys) {
-                return in_array($model->getScoutKey(), $keys);
-            });
+            $builder, $keys
+        )->filter(function ($model) use ($keys) {
+            return in_array($model->getScoutKey(), $keys);
+        })->sortBy(function ($model) use ($keys) {
+            return array_search($model->getScoutKey(), $keys);
+        });
     }
 
     /**
@@ -245,22 +275,5 @@ class ElasticsearchEngine extends Engine
         $model->newQuery()
             ->orderBy($model->getKeyName())
             ->unsearchable();
-    }
-
-    /**
-     * Generates the sort if theres any.
-     *
-     * @param  Builder $builder
-     * @return array|null
-     */
-    protected function sort($builder)
-    {
-        if (count($builder->orders) == 0) {
-            return null;
-        }
-
-        return collect($builder->orders)->map(function($order) {
-            return [$order['column'] => $order['direction']];
-        })->toArray();
     }
 }
