@@ -1,5 +1,6 @@
 {
-    "name": "tamayo/laravel-scout-elastic",
+    "name": "boomhq/laravel-scout-elastic",
+    "license": "MIT",
     "description": "Elastic Driver for Laravel Scout",
     "keywords": ["laravel", "scout", "elasticsearch", "elastic"],
     "require": {

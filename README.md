@@ -55,6 +55,26 @@ After you've published the Laravel Scout package configuration:
 
 ## Usage
 
+###Custom Query
+On Model you can specify custom query by : 
+```php
+ public function customScoutQuerySearching($terms): array
+    {
+        return [
+            'query' => [
+                'multi_match' => [
+                    'query' => (string) ($terms),
+                    'fields' => [
+                        '*'
+                    ],
+                    'fuzziness' => 'AUTO',
+                    'type' => 'most_fields'
+                ]
+            ],
+        ];
+    }
+```
+
 Now you can use Laravel Scout as described in the [official documentation](https://laravel.com/docs/5.3/scout)
 ## Credits
 
