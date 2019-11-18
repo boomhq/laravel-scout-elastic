@@ -57,7 +57,7 @@ After you've published the Laravel Scout package configuration:
 
 ## Usage
 
-###Custom Query
+### Custom Query
 On Model you can specify custom query by : 
 
 ```php
