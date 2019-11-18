@@ -49,6 +49,8 @@ After you've published the Laravel Scout package configuration:
         'hosts' => [
             env('ELASTICSEARCH_HOST', 'http://localhost'),
         ],
+//set If one index per model (use searchableAs Methode) (defaut false)
+        'perModelIndex' => true,
     ],
 ...
 ```
@@ -57,7 +59,9 @@ After you've published the Laravel Scout package configuration:
 
 ###Custom Query
 On Model you can specify custom query by : 
+
 ```php
+
  public function customScoutQuerySearching($terms): array
     {
         return [
