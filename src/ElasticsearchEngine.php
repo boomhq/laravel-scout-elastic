@@ -127,16 +127,26 @@ class ElasticsearchEngine extends Engine
      */
     protected function performSearch(Builder $builder, array $options = [])
     {
+        if (method_exists($builder->model, 'customScoutQuerySearching')) {
+            $queryBody = $builder->model->customScoutQuerySearching($builder->query);
+        } else {
+            $queryBody = [
+                'query' => [
+                    'multi_match' => [
+                        'query' => (string) ($builder->query),
+                        "fields" => [
+                            "*"
+                        ],
+                        "fuzziness" => "AUTO",
+                        "type" => "most_fields"
+                    ]
+                ]
+            ];
+        }
         $params = [
             'index' => $builder->index ?: $this->getIndex($builder->model),
             'type' => $builder->index ?: $builder->model->searchableAs(),
-            'body' => [
-                'query' => [
-                    'bool' => [
-                        'must' => [['query_string' => ['query' => "{$builder->query}"]]]
-                    ]
-                ]
-            ]
+            'body' => $queryBody
         ];
 
         if ($sort = $this->sort($builder)) {
@@ -257,6 +267,8 @@ class ElasticsearchEngine extends Engine
             $keys
         )->filter(function ($model) use ($keys) {
             return in_array($model->getScoutKey(), $keys);
+        })->sortBy(function ($model) use ($keys) {
+            return array_search($model->getScoutKey(), $keys);
         });
     }
 
