@@ -59,11 +59,11 @@ class ElasticsearchEngine extends Engine
                     '_id' => $model->getKey(),
                     '_index' => $this->getIndex($model),
                     '_type' => $model->searchableAs(),
-                ]
+                ],
             ];
             $params['body'][] = [
                 'doc' => $model->toSearchableArray(),
-                'doc_as_upsert' => true
+                'doc_as_upsert' => true,
             ];
         });
 
@@ -97,7 +97,7 @@ class ElasticsearchEngine extends Engine
                     '_id' => $model->getKey(),
                     '_index' => $this->getIndex($model),
                     '_type' => $model->searchableAs(),
-                ]
+                ],
             ];
         });
 
@@ -135,18 +135,20 @@ class ElasticsearchEngine extends Engine
                     'multi_match' => [
                         'query' => (string) ($builder->query),
                         "fields" => [
-                            "*"
+                            "*",
                         ],
                         "fuzziness" => "AUTO",
-                        "type" => "most_fields"
-                    ]
-                ]
+                        "type" => "most_fields",
+                    ],
+                ],
+                'track_scores' => true,
+
             ];
         }
         $params = [
             'index' => $builder->index ?: $this->getIndex($builder->model),
             'type' => $builder->index ?: $builder->model->searchableAs(),
-            'body' => $queryBody
+            'body' => $queryBody,
         ];
 
         if ($sort = $this->sort($builder)) {
@@ -162,10 +164,9 @@ class ElasticsearchEngine extends Engine
         }
 
         if (isset($options['numericFilters']) && count($options['numericFilters'])) {
-            $params['body']['query']['bool']['must'] = array_merge(
-                $params['body']['query']['bool']['must'],
-                $options['numericFilters']
-            );
+
+            $params['body']['query']['bool'] = array_merge($params['body']['query']['bool'],
+                ['filter' => array_reduce($options['numericFilters'], 'array_merge', [])]);
         }
 
         if ($builder->callback) {
@@ -176,6 +177,8 @@ class ElasticsearchEngine extends Engine
                 $params
             );
         }
+
+        //dd($params);
 
         return $this->elastic->search($params);
     }
@@ -230,7 +233,7 @@ class ElasticsearchEngine extends Engine
             'size' => $perPage,
         ]);
 
-        $result['nbPages'] = $result['hits']['total'] / $perPage;
+        $result['nbPages'] = $result['hits']['total']['value'] / $perPage;
 
         return $result;
     }
@@ -256,7 +259,7 @@ class ElasticsearchEngine extends Engine
      */
     public function map(Builder $builder, $results, $model)
     {
-        if ($results['hits']['total'] === 0) {
+        if ($results['hits']['total']['value'] === 0) {
             return $model->newCollection();
         }
 
@@ -280,7 +283,7 @@ class ElasticsearchEngine extends Engine
      */
     public function getTotalCount($results)
     {
-        return $results['hits']['total'];
+        return $results['hits']['total']['value'];
     }
 
     /**
