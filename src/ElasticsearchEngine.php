@@ -51,6 +51,11 @@ class ElasticsearchEngine extends Engine
      */
     public function update($models)
     {
+        if (!$this->existsIndex($this->getIndex($models->first())) && method_exists($models->first(),
+                'elasticsearchIndex')) {
+            $this->createIndex($this->getIndex($models->first()), $models->first()->elasticsearchIndex());
+        }
+
         $params['body'] = [];
 
         $models->each(function ($model) use (&$params) {
@@ -71,6 +76,15 @@ class ElasticsearchEngine extends Engine
     }
 
     /**
+     * @param $index
+     * @return bool
+     */
+    public function existsIndex($index)
+    {
+        return $this->elastic->indices()->exists(['index' => $index]);
+    }
+
+    /**
      * Retrieves the index for the given model.
      *
      * @param  Model  $model
@@ -82,6 +96,16 @@ class ElasticsearchEngine extends Engine
     }
 
     /**
+     * @param $index index name
+     * @param $body body param for create index
+     * @return array
+     */
+    public function createIndex($index, $body = [])
+    {
+        return $this->elastic->indices()->create(['index' => $index, 'body' => $body]);
+    }
+
+    /**
      * Remove the given model from the index.
      *
      * @param  Collection  $models
@@ -89,6 +113,7 @@ class ElasticsearchEngine extends Engine
      */
     public function delete($models)
     {
+
         $params['body'] = [];
 
         $models->each(function ($model) use (&$params) {
@@ -164,9 +189,10 @@ class ElasticsearchEngine extends Engine
         }
 
         if (isset($options['numericFilters']) && count($options['numericFilters'])) {
-
-            $params['body']['query']['bool'] = array_merge($params['body']['query']['bool'],
-                ['filter' => array_reduce($options['numericFilters'], 'array_merge', [])]);
+            $params['body']['query']['bool'] = array_merge(
+                $params['body']['query']['bool'],
+                ['filter' => array_reduce($options['numericFilters'], 'array_merge', [])]
+            );
         }
 
         if ($builder->callback) {
@@ -177,8 +203,6 @@ class ElasticsearchEngine extends Engine
                 $params
             );
         }
-
-        //dd($params);
 
         return $this->elastic->search($params);
     }
@@ -297,5 +321,34 @@ class ElasticsearchEngine extends Engine
         $model->newQuery()
             ->orderBy($model->getKeyName())
             ->unsearchable();
+    }
+
+    /**
+     * @param  null  $index
+     * @return array
+     */
+    public function deleteIndex($index)
+    {
+        return $this->elastic->indices()->delete(['index' => $index]);
+    }
+
+    /**
+     * @param  null  $index
+     * @param $type
+     * @param  array  $mapping
+     * @return array
+     */
+    public function putMapping($index = null, $type, array $mapping)
+    {
+        $params = [
+            'index' => $index,
+            'type' => $type,
+            'body' => [
+                $type => [
+                    'properties' => $mapping
+                ]
+            ]
+        ];
+        return $this->elastic->indices()->putMapping($params);
     }
 }
