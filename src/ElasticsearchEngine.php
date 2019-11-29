@@ -51,8 +51,17 @@ class ElasticsearchEngine extends Engine
      */
     public function update($models)
     {
-        if (!$this->existsIndex($this->getIndex($models->first())) && method_exists($models->first(),
-                'elasticsearchIndex')) {
+
+        $indexNotExist = !$this->existsIndex($this->getIndex($models->first()));
+        $customIndexExistOnModel = method_exists(
+            $models->first(),
+            'elasticsearchIndex'
+        );
+
+        $createIndex = $indexNotExist && $customIndexExistOnModel;
+
+
+        if ($createIndex) {
             $this->createIndex($this->getIndex($models->first()), $models->first()->elasticsearchIndex());
         }
 
@@ -96,8 +105,8 @@ class ElasticsearchEngine extends Engine
     }
 
     /**
-     * @param $index index name
-     * @param $body body param for create index
+     * @param  String  $index  index name
+     * @param  array  $body  body param for create index
      * @return array
      */
     public function createIndex($index, $body = [])
