@@ -166,17 +166,19 @@ class ElasticsearchEngine extends Engine
         } else {
             $queryBody = [
                 'query' => [
-                    'multi_match' => [
-                        'query' => (string) ($builder->query),
-                        "fields" => [
-                            "*",
+                    'bool' => [
+                        'must' => [
+                            'multi_match' => [
+                                'query' => (string) $builder->query,
+                                'fields' => [
+                                    '*',
+                                ],
+                                'type' => 'most_fields',
+                            ],
                         ],
-                        "fuzziness" => "AUTO",
-                        "type" => "most_fields",
                     ],
                 ],
                 'track_scores' => true,
-
             ];
         }
         $params = [
@@ -354,10 +356,11 @@ class ElasticsearchEngine extends Engine
             'type' => $type,
             'body' => [
                 $type => [
-                    'properties' => $mapping
-                ]
-            ]
+                    'properties' => $mapping,
+                ],
+            ],
         ];
+
         return $this->elastic->indices()->putMapping($params);
     }
 }
