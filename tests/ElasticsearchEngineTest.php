@@ -107,14 +107,13 @@ class ElasticsearchEngineTest extends PHPUnit_Framework_TestCase
     {
         /** @var Client|MockInterface $client */
         $client = Mockery::mock(Client::class);
-        $client->shouldReceive('search')->andReturnValues([
+        $client->shouldReceive('search')->once()->with([
             'index' => 'table',
             'type' => 'table',
             'body' => [
                 'query' => [
                     'bool' => [
                         'must' => [
-                            [
                                 'multi_match' => [
                                     'query' => 'zonda',
                                     "fields" => [
@@ -122,7 +121,6 @@ class ElasticsearchEngineTest extends PHPUnit_Framework_TestCase
                                     ],
                                     "type" => "most_fields",
                                 ],
-                            ],
                         ],
                         'filter' => [
                             ['match_phrase' => ['foo' => 1]],
@@ -130,7 +128,7 @@ class ElasticsearchEngineTest extends PHPUnit_Framework_TestCase
                         ],
                     ],
                 ],
-                'track_scores' => 1,
+                'track_scores' => true,
 
                 'sort' => [
                     ['id' => 'desc'],
