@@ -200,7 +200,7 @@ class ElasticsearchEngine extends Engine
         if (isset($options['numericFilters']) && count($options['numericFilters'])) {
             $params['body']['query']['bool'] = array_merge(
                 $params['body']['query']['bool'],
-                ['filter' => array_reduce($options['numericFilters'], 'array_merge', [])]
+                ['filter' => $options['numericFilters']]
             );
         }
 
