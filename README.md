@@ -1,6 +1,7 @@
 # Laravel Scout Elasticsearch Driver
 
 [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
+[![Status build](https://api.travis-ci.org/boomhq/laravel-scout-elastic.svg?branch=master)]()
 
 This package makes is the [Elasticsearch](https://www.elastic.co/products/elasticsearch) driver for Laravel Scout.
 
@@ -57,6 +58,47 @@ After you've published the Laravel Scout package configuration:
 
 ## Usage
 
+### Custom Index
+If you want to push a specific index you can declare ```elasticsearchIndex() ``` On your Model Before first Import (otherwise you need to delete index and reimport for create them) :
+
+```php
+    public function elasticsearchIndex()
+    {
+        return  [
+                  "settings" => [
+                        "analysis" => [
+                           "analyzer" => [
+                              "default" => [
+                                 "tokenizer" => "my_tokenizer", 
+                                 "filter" => [
+                                    "lowercase" 
+                                 ] 
+                              ], 
+                              "default_search" => [
+                                       "tokenizer" => "my_tokenizer" 
+                                    ] 
+                           ], 
+                           "tokenizer" => [
+                                          "my_tokenizer" => [
+                                             "type" => "edge_ngram", 
+                                             "min_gram" => 3, 
+                                             "max_gram" => 20, 
+                                             "token_chars" => [
+                                                "letter" 
+                                             ], 
+                                             "filter" => [
+                                                   "lowercase", 
+                                                   "asciifolding" 
+                                                ] 
+                                          ] 
+                                       ] 
+                        ], 
+                        "max_ngram_diff" => "20" 
+                     ] 
+               ]; 
+                
+    }
+```
 ### Custom Query
 On Model you can specify custom query by : 
 
